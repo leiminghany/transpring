@@ -1,3 +1,4 @@
+encodeing zh_CN.GB2312
 说明:
 dbcmp用于比较数据库的两个表之间的差异,并通过WEB的形式高亮显示。
 dbcmp运行于Linux/Unix平台,目前只支持Oracle.
