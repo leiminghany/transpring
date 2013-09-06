@@ -13,45 +13,46 @@ function gendiffsql()
 
     tab_name1=${prefix1}${tab}${suffix1};
     tab_name2=${prefix2}${tab}${suffix2};
-    begin=0;
     count=0;
-    col=;
     cols=;
     cols2=;
     colnames=;
 
-    while read line
+    while read col
     do
-        col=`echo $line |awk '{print $1}';`
         if [ -z "$col" ]; then
             continue;
         fi
-        if [ ${col:0:4} ==  "----" ]; then
-            begin="1";
+        col2=$col;
+
+        count=`expr $count + 1`;
+        if [ $count -ge '15' ]; then
+            cols="$cols\n"
+            cols2="$cols2\n"
+            colnames="$colnames\n"
+            count=0;
+        fi
+            
+        #exclude cols
+        exclude_str=`grep "^__GLOBAL__:.*|$col|" "$xcols_path$xcols_file"`;
+        if [ -n "$exclude_str" ]; then
             continue;
-        fi
-        if [ $begin == "1" ]; then
-            count=`expr $count + 1`;
-            if [ $count == '15' ]; then
-                cols="$cols\n"
-                cols2="$cols2\n"
-                colnames="$colnames\n"
-                count=0;
-            fi
-                
-            #exclude cols
-            exclude_str=`grep "^__GLOBAL__:.*|$col|" "$xcols_path$xcols_file"`;
-            if [ -n "$exclude_str" ]; then
-                continue;
-            fi
+        else
             exclude_str=`grep "^$tab:.*|$col|" "$xcols_path$xcols_file"`;
-            if [ -n "$exclude_str" ]; then
+        fi
+
+        if [ -n "$exclude_str" ]; then
+            tmp=${exclude_str#*|$col|};
+            if [ "${tmp:0:7}" == 'UPDATE;' ]; then
+                tmp=${tmp:7};
+                col="${tmp%%;*} \"$col\"";
+            else 
                 continue;
             fi
-            cols="$cols,$col";
-            cols2="$cols2,'''',$col,''','";
-            colnames="$colnames,'''','$col',''','";
         fi
+        cols="$cols,$col";
+        cols2="$cols2,'''',$col2,''','";
+        colnames="$colnames,'''','$col2',''','";
     done <$tabdef
 
 
@@ -61,6 +62,10 @@ function gendiffsql()
     colnames="${colnames:1}";
     colnames="'[',${colnames},'],'";
 
+    if [ -n "$maxrownum" ]; then
+        rownumcntl="where rownum <= $maxrownum";
+    fi
+
     echo -e "set termout on" >>$sqlfile;
     echo -e "select '//Comparing $tab ', systimestamp from dual;" >>$sqlfile;
     echo -e "set termout off" >>$sqlfile;
@@ -68,18 +73,19 @@ function gendiffsql()
     echo -e "select $colnames from dual;" >>$sqlfile;
     echo -e "select $cols2 from " >>$sqlfile;
     echo -e "(select $cols from $tab_name1 $condstr minus" >>$sqlfile;
-    echo -e " select $cols from $tab_name2 $condstr);">>$sqlfile;
+    echo -e " select $cols from $tab_name2 $condstr) $rownumcntl;">>$sqlfile;
     echo -e "prompt [])"  >>$sqlfile;
     echo -e "prompt var $tab_name2 = new Array( " >>$sqlfile;
     echo -e "select $colnames from dual;" >>$sqlfile;
     echo -e "select $cols2 from " >>$sqlfile;
     echo -e "(select $cols from $tab_name2 $condstr minus" >>$sqlfile;
-    echo -e " select $cols from $tab_name1 $condstr);">>$sqlfile;
+    echo -e " select $cols from $tab_name1 $condstr) $rownumcntl;">>$sqlfile;
     echo -e "prompt [])"  >>$sqlfile;
     echo -e "-------------------">>$sqlfile;
 }
 
-if [ "$1" == 'init' ]; then
+function initsql() 
+{
   echo "数据初始化开始。"
   >$sqlfile
   echo "set heading off" >>$sqlfile
@@ -112,8 +118,10 @@ set feedback off
 set ver off
 spool $tmpfile
   
-define tbl=$prefix1$tab$suffix1;
-desc &tbl;
+define tbl1=$prefix1$tab$suffix1;
+define tbl2=$prefix2$tab$suffix2;
+select COLUMN_NAME from COLS where TABLE_NAME ='&tbl1' intersect select COLUMN_NAME from COLS where TABLE_NAME ='&tbl2';
+--desc &tbl;
 quit;
 EOF
 `
@@ -130,10 +138,10 @@ EOF
   done <$tablist
   echo "quit;" >>$sqlfile
   echo "数据初始化结束，请重新运行dbcmp run"
-  exit;
-fi
+}
 
-if [ "$1" == 'run' ]; then
+function runCmp()
+{
   echo "数据比较开始"
   cat >$rptfile <<EOF
 <html>
@@ -146,12 +154,12 @@ if [ "$1" == 'run' ]; then
 EOF
   sqlplus -S $db_user/$db_passwd@$db_inst @$sqlfile $rptfile
   cat >>$rptfile<<EOF
-	</script>
-	<div id="mydiv">
-	<h2 align="center"> 数据库比对结果报告 </h2>
+    </script>
+    <div id="mydiv">
+    <h2 align="center"> 数据库比对结果报告 </h2>
       <script>
 EOF
-  for tab in `cat $tablist |grep -v ^\# |awk '{print $1}'`
+  for tab in `cat $tablist |grep -v "^ *\#" |awk '{print $1}'`
   do
     echo "if($prefix1$tab$suffix1.length<=2 && $prefix2$tab$suffix2.length<=2 ){" >>$rptfile
     echo "  document.write('${tab}表无差异<br>');" >>$rptfile
@@ -159,67 +167,84 @@ EOF
     echo "  document.write('${tab}表有差异：<a href=\"javascript:print($prefix1$tab$suffix1,$prefix2$tab$suffix2,\'$prefix1$tab$suffix1\', \'$prefix2$tab$suffix2\')\"> 查看详情 </a> <br>');" >>$rptfile
     echo "}"  >>$rptfile
   done
+
+  if [ -n "$maxrownum" ]; then
+    echo "var maxrownum=$maxrownum" >>$rptfile;
+  fi
+
   cat >>$rptfile<<EOF
       </script>
-	</div>
-	<div id="help">
-	</div>
+    </div>
+    <div id="help">
+    </div>
 </body>
 </html>
 
 <script>
+var PointX=0;PointY=0;
 function ChangeValue(tname,i,j,value2) {
-	//document.write(tname+value2);
-	var x=document.getElementById(tname).rows[i].cells;
-	x[j+1].innerHTML=value2;
+    var x=document.getElementById(tname).rows[i].cells;
+    x[j+1].innerHTML=value2;
 }
+function savePoint() {    
+    ev=window.event;
+    if(typeof(ev)!='undefined'){
+        PointX=ev.x;
+        PointY=ev.y;
+    }
+}
+
 function ChangeValues(table1, table2, tname1, tname2) {
-	var x=document.getElementById("mydiv");
-	x.innerHTML="";
-	reprint(table2, table1, tname2, tname1);
+    ev=window.event;
+    if(typeof(ev)!='undefined'){
+        if(ev.x!=PointX || ev.y != PointY) {
+            return;
+        }
+    }
+    reprint(table2, table1, tname2, tname1);
 }
 function SortAsc(table1,table2,tname1,tname2,col) {
-	var r=confirm("是否按此列进行升序排序？");
-	if (r==true) {
-		var head1=table1.shift();
-		var head2=table2.shift();
-		table1.sort( function(x,y) {
-			return (x[col].localeCompare(y[col]))
-		});
-		table2.sort( function(x,y) {
-			return (x[col].localeCompare(y[col]))
-		});
-		table1.unshift(head1);
-		table2.unshift(head2);
-		reprint(table1, table2, tname1, tname2);
-	}
+    var r=confirm("是否按此列进行升序排序？");
+    if (r==true) {
+        var head1=table1.shift();
+        var head2=table2.shift();
+        table1.sort( function(x,y) {
+            return (x[col].localeCompare(y[col]))
+        });
+        table2.sort( function(x,y) {
+            return (x[col].localeCompare(y[col]))
+        });
+        table1.unshift(head1);
+        table2.unshift(head2);
+        reprint(table1, table2, tname1, tname2);
+    }
 }
 function MoveBtn(table1,table2,tname1,tname2,i) {
-	var r=confirm("是否将此行移至最底部？");
-	if (r==true) {
-		var rec=table1.splice(i,1);
-		table1.push(rec[0]);
-		reprint(table1, table2, tname1, tname2);
-	} 
+    var r=confirm("是否将此行移至最底部？");
+    if (r==true) {
+        var rec=table1.splice(i,1);
+        table1.push(rec[0]);
+        reprint(table1, table2, tname1, tname2);
+    } 
 }
 
 function showHelp() {
-	var helptext;
+    var helptext;
     helptext="> 红色表示两个表的值不一致，用鼠标移入移出可以切换。<br>";
     helptext+="> 单击行号移动行，单击列名选择排序，单击<表>在两个表之间全局切换。<br>";
     helptext+="> 目前未支持'转义，字符串字段里面如果包含'可能会有问题<br>";
     helptext+="<br>开源软件，大家自由修改。<br>";
     helptext+="维护地址: http://code.google.com/p/transpring/source/browse/tools/dbcmp <br>";
     helptext+="<br>贡献者名单：<br>";
-    helptext+="V1.1 20130816    雷明环(leiminghuan@126.com)     创建<br>";
-    helptext+="V2.0 20130823    雷明环(leiminghuan@126.com)     支持按列排序、行移动,显示优化<br>";
-
-	var stat=document.getElementById("help");
-	if(stat.innerHTML == "") {
-		stat.innerHTML=helptext;
-	}else {
-		stat.innerHTML="";
-	}
+    helptext+="V1.1.0  20130816    雷明环(leiminghuan@126.com)    创建<br>";
+    helptext+="V2.0.1  20130823    雷明环(leiminghuan@126.com)    支持按列排序、行移动,显示优化<br>";
+    helptext+="V2.2.0  20130903    雷明环(leiminghuan@126.com)    支持按列函数、指定表比较，优化缺陷<br>";
+    var stat=document.getElementById("help");
+    if(stat.innerHTML == "") {
+        stat.innerHTML=helptext;
+    }else {
+        stat.innerHTML="";
+    }
 }
 function print(table1, table2, tname1, tname2) {
     table1.pop();
@@ -228,33 +253,39 @@ function print(table1, table2, tname1, tname2) {
 }
 
 function reprint(table1, table2, tname1, tname2) {
-	var divtext, RecTmp1, RecTmp2;
-	divtext='<a href = "javascript:location.reload()">回首页</a>';
-	var	td_attrs="";
-	divtext+='<table id="'+tname1+'" border = "1" cellspacing = "0" style="border-collapse:collapse" ';
-    divtext+='onclick="javascript:ChangeValues('+tname1+','+tname2+',\''+tname1+'\',\''+tname2+'\')" >';
-	for( var i=0; i<Math.max(table1.length,table2.length); i++) {
-		if(typeof(table1[i]) == 'undefined') {
-			RecTmp1=new Array();
-		} else {
+    var divtext, RecTmp1, RecTmp2;
+    divtext='<a href = "javascript:location.reload()">回首页</a>';
+    if(typeof(maxrownum) != 'undefined') {
+        if(table1.length >= maxrownum || table2.length >= maxrownum ) {
+            divtext+='  <font color="#FF0000">（仅显示了前'+maxrownum+'条）</font>';
+        }
+    }
+    var    td_attrs="";
+    divtext+='<table id="'+tname1+'" border = "1" cellspacing = "0" style="border-collapse:collapse" ';
+    divtext+='onmousedown="javascript:savePoint()" ';
+    divtext+='onmouseup="javascript:ChangeValues('+tname1+','+tname2+',\''+tname1+'\',\''+tname2+'\')" >';
+    for( var i=0; i<Math.max(table1.length,table2.length); i++) {
+        if(typeof(table1[i]) == 'undefined') {
+            RecTmp1=new Array();
+        } else {
             RecTmp1=table1[i];
         }
-		if(typeof(table2[i]) == 'undefined') {
-			RecTmp2=new Array();
-		} else {
+        if(typeof(table2[i]) == 'undefined') {
+            RecTmp2=new Array();
+        } else {
             RecTmp2=table2[i];
         }
-		divtext+="<tr>";
-		for( var j=0; j<table1[0].length-1; j++) {
-			if( j==0 ) {
-				if(i == 0) {
-					divtext+='<td bgcolor="#c0c0c0" >'+ tname1+'</td>';
-				} else {
+        divtext+="<tr>";
+        for( var j=0; j<table1[0].length-1; j++) {
+            if( j==0 ) {
+                if(i == 0) {
+                    divtext+='<td bgcolor="#c0c0c0" >'+(tname1+'..........').substring(0,12)+'</td>';
+                } else {
                     divtext+='<td bgcolor="#F0F0F0" ';
-                    divtext+='onclick="javascript:MoveBtn('+tname1+','+tname2+',\''+tname1+'\',\''+tname2+'\','+i+')"> ';
+                    divtext+='onmouseup="javascript:MoveBtn('+tname1+','+tname2+',\''+tname1+'\',\''+tname2+'\','+i+')"> ';
                     divtext+=i+'</td>';
-				}
-			}
+                }
+            }
             if(typeof(RecTmp1[j]) == 'undefined') {
                 RecTmp1[j]="";
             }
@@ -262,36 +293,57 @@ function reprint(table1, table2, tname1, tname2) {
                 RecTmp2[j]="";
             }
 
-			if(RecTmp1[j]!=RecTmp2[j]) {
-				td_attrs='bgcolor="#FFAA00" '+
-					'onmouseover="javascript:ChangeValue(\''+tname1+'\','+i+','+j+',\''+RecTmp2[j]+'\')" '+
-					'onmouseout ="javascript:ChangeValue(\''+tname1+'\','+i+','+j+',\''+RecTmp1[j]+'\')" ';
+            if(RecTmp1[j]!=RecTmp2[j]) {
+                td_attrs='bgcolor="#FFAA00" '+
+                    'onmouseover="javascript:ChangeValue(\''+tname1+'\','+i+','+j+',\''+RecTmp2[j]+'\')" '+
+                    'onmouseout ="javascript:ChangeValue(\''+tname1+'\','+i+','+j+',\''+RecTmp1[j]+'\')" ';
 
-			}
-			
-			if(i==0) {
-				td_attrs='bgcolor="#F0F0F0" ';
-                td_attrs+='onclick="javascript:SortAsc('+tname1+','+tname2+',\''+tname1+'\',\''+tname2+'\','+j+')" ';
-			}
-			
-			divtext+="<td "+td_attrs+">"+RecTmp1[j]+"</td>";
-			td_attrs="";
+            }
+            
+            if(i==0) {
+                td_attrs='bgcolor="#F0F0F0" ';
+                td_attrs+='onmouseup="javascript:SortAsc('+tname1+','+tname2+',\''+tname1+'\',\''+tname2+'\','+j+')" ';
+            }
+            
+            divtext+="<td "+td_attrs+">"+RecTmp1[j]+"</td>";
+            td_attrs="";
 
-		}
-		divtext+="</tr>";
-	}
-	divtext+="</table>";
-	divtext+='<br><a href = "javascript:showHelp()">帮助</a>';
-	document.getElementById("mydiv").innerHTML=divtext;
+        }
+        divtext+="</tr>";
+    }
+    divtext+="</table>";
+    divtext+='<br><a href = "javascript:showHelp()">帮助</a>';
+    document.getElementById("mydiv").innerHTML=divtext;
 }
 </script>
 
 EOF
   echo "数据比较完毕，结果详见$rptfile"
+}
+
+if [ "$1" == 'init' ]; then
+  initsql;
   exit;
 fi
 
-echo "Usage: dbcmp init|run";
+if [ "$1" == 'run' ]; then
+  runCmp;
+  exit;
+fi
+
+if [ "$1" == 'table' ] && [ -n "$2" ]; then
+  sqlfile=".dbcmp_$2.sql";
+  rptfile="${rptfile%.html}_$2.html";
+  grep -i "^ *$2" $tablist >".dbcmp_$2.tbl"
+  tablist=".dbcmp_$2.tbl";
+  initsql;
+  runCmp;
+  rm -f "$sqlfile" "$tablist" 
+  exit;
+fi
+
+echo "Usage: dbcmp init|run|{table <tname>}";
 echo "       init: run it when table's structure、configure files is changed";
-echo "       run : excute the comparation.";
+echo "       run : excute the comparation";
+echo "       table <tname> : init and excute the comparation only for the table <tname>";
 
