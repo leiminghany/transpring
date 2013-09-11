@@ -6,7 +6,20 @@ dbcmp运行于Linux/Unix平台,目前只支持Oracle.
 比较完后系统将生成一个html的报表文件,可以通过浏览器打开。
 
 配置文件说明：
-dbcmp.cfg：全局配置，每项配置后均有注释。不再做说明。
+dbcmp.cfg：全局配置，说明如下：
+db_user=scott      #数据库用户名
+db_passwd=tiger      #数据库用户密码
+db_inst=orcl          #数据库连接描述符
+default_condstr="WHERE BANK=6320";      #要抽取数据的默认条件
+prefix1=tbl_        #表1前缀
+prefix2=bak_        #表2前缀
+suffix1=        #表1后缀
+suffix2=        #表2后缀
+tablist="dbcmp.tbl"        #参与比对的表配置文件名
+rptfile="report.html"         #生成的差异报告文件名
+xcols_path=./           #排除列配置文件目录
+xcols_file="dbcmp.xcols"        #排除列配置文件
+maxrownum=500		#输出记录的最大条数
 
 dbcmp.tbl：参与比对数据库表配置文件。
 填写要参与比对的表名，可以带WHERE条件，如果没有WHERE条件，系统将采用全局配置的default_condstr参数。
