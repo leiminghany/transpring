@@ -67,7 +67,7 @@ function gendiffsql()
     fi
 
     echo -e "set termout on" >>$sqlfile;
-    echo -e "select '//Comparing $tab ', systimestamp from dual;" >>$sqlfile;
+    echo -e "select '//Comparing $tab ', to_char(sysdate,'hh24:mi:ss') from dual;" >>$sqlfile;
     echo -e "set termout off" >>$sqlfile;
     echo -e "prompt var $tab_name1 = new Array( " >>$sqlfile;
     echo -e "select $colnames from dual;" >>$sqlfile;
@@ -86,15 +86,17 @@ function gendiffsql()
 
 function initsql() 
 {
-  echo "数据初始化开始。"
-  >$sqlfile
+  echo "data initialization begun."
+  echo "define variables=${sqlvarlist//;/||}" >$sqlfile
+  echo "spool $rptfile append" >>$sqlfile
   echo "set heading off" >>$sqlfile
   echo "set feedback off" >>$sqlfile
   echo "set ver off" >>$sqlfile
-  echo "spool &1 append" >>$sqlfile
   echo "set line 20000" >>$sqlfile
   echo "set termout off" >>$sqlfile
   echo "set trimspool on" >>$sqlfile
+  echo "WHENEVER OSERROR EXIT FAILURE" >>$sqlfile
+  echo "WHENEVER SQLERROR EXIT FAILURE" >>$sqlfile
 
   while read tab condstr
   do
@@ -108,8 +110,7 @@ function initsql()
       condstr=$default_condstr;
     fi
     
-    echo -n .
-    echo $tab,$condstr;
+    echo .$tab,$condstr;
     
     result=`
 sqlplus -S $db_user/$db_passwd@$db_inst <<EOF
@@ -117,18 +118,17 @@ set heading off
 set feedback off 
 set ver off
 spool $tmpfile
-  
+set trimspool on
 define tbl1=$prefix1$tab$suffix1;
 define tbl2=$prefix2$tab$suffix2;
-select COLUMN_NAME from COLS where TABLE_NAME ='&tbl1' intersect select COLUMN_NAME from COLS where TABLE_NAME ='&tbl2';
---desc &tbl;
+select COLUMN_NAME from COLS where TABLE_NAME =upper('&tbl1') intersect select COLUMN_NAME from COLS where TABLE_NAME =upper('&tbl2');
 quit;
 EOF
 `
 
     errinf=`echo $result|grep "ERROR:"`;
     if [ -n "$errinf" ]; then
-        echo "处理数据出错"
+        echo "data initialization error"
         echo $errinf;
         exit 1;
     fi
@@ -137,12 +137,12 @@ EOF
       
   done <$tablist
   echo "quit;" >>$sqlfile
-  echo "数据初始化结束，请重新运行dbcmp run"
+  echo "data initialization finished, execute 'dbcmp run' command to compare. "
 }
 
 function runCmp()
 {
-  echo "数据比较开始"
+  echo "data compare begun"
   cat >$rptfile <<EOF
 <html>
 <head>
@@ -150,21 +150,26 @@ function runCmp()
 </head>
 <body>
     <script>
-            /* 数据 */
+            /* data elements */
 EOF
-  sqlplus -S $db_user/$db_passwd@$db_inst @$sqlfile $rptfile
+  sqlplus -S $db_user/$db_passwd@$db_inst @$sqlfile
+  if [ "$?" != "0" ]; then 
+    echo "data compare error"
+    tail -n 10 $rptfile;
+    exit;
+  fi
   cat >>$rptfile<<EOF
     </script>
     <div id="mydiv">
-    <h2 align="center"> 数据库比对结果报告 </h2>
+    <h2 align="center"> Data Compare Report </h2>
       <script>
 EOF
   for tab in `cat $tablist |grep -v "^ *\#" |awk '{print $1}'`
   do
     echo "if($prefix1$tab$suffix1.length<=2 && $prefix2$tab$suffix2.length<=2 ){" >>$rptfile
-    echo "  document.write('${tab}表无差异<br>');" >>$rptfile
+    echo "  document.write('Table ${tab} has no difference. <br>');" >>$rptfile
     echo "} else {" >>$rptfile
-    echo "  document.write('${tab}表有差异：<a href=\"javascript:print($prefix1$tab$suffix1,$prefix2$tab$suffix2,\'$prefix1$tab$suffix1\', \'$prefix2$tab$suffix2\')\"> 查看详情 </a> <br>');" >>$rptfile
+    echo "  document.write('Table ${tab} has some differences: <a href=\"javascript:print($prefix1$tab$suffix1,$prefix2$tab$suffix2,\'$prefix1$tab$suffix1\', \'$prefix2$tab$suffix2\')\"> view detail  </a> <br>');" >>$rptfile
     echo "}"  >>$rptfile
   done
 
@@ -204,7 +209,7 @@ function ChangeValues(table1, table2, tname1, tname2) {
     reprint(table2, table1, tname2, tname1);
 }
 function SortAsc(table1,table2,tname1,tname2,col) {
-    var r=confirm("是否按此列进行升序排序？");
+    var r=confirm("Sort this column ascending?");
     if (r==true) {
         var head1=table1.shift();
         var head2=table2.shift();
@@ -220,7 +225,7 @@ function SortAsc(table1,table2,tname1,tname2,col) {
     }
 }
 function MoveBtn(table1,table2,tname1,tname2,i) {
-    var r=confirm("是否将此行移至最底部？");
+    var r=confirm("Move this record to bottom?");
     if (r==true) {
         var rec=table1.splice(i,1);
         table1.push(rec[0]);
@@ -230,15 +235,16 @@ function MoveBtn(table1,table2,tname1,tname2,i) {
 
 function showHelp() {
     var helptext;
-    helptext="> 红色表示两个表的值不一致，用鼠标移入移出可以切换。<br>";
-    helptext+="> 单击行号移动行，单击列名选择排序，单击<表>在两个表之间全局切换。<br>";
-    helptext+="> 目前未支持'转义，字符串字段里面如果包含'可能会有问题<br>";
-    helptext+="<br>开源软件，大家自由修改。<br>";
-    helptext+="维护地址: http://code.google.com/p/transpring/source/browse/tools/dbcmp <br>";
-    helptext+="<br>贡献者名单：<br>";
-    helptext+="V1.1.0  20130816    雷明环(leiminghuan@126.com)    创建<br>";
-    helptext+="V2.0.1  20130823    雷明环(leiminghuan@126.com)    支持按列排序、行移动,显示优化<br>";
-    helptext+="V2.2.0  20130903    雷明环(leiminghuan@126.com)    支持按列函数、指定表比较，优化缺陷<br>";
+    helptext="<br>> Red cells means difference, view another value by move mouse over. <br>";
+    helptext+="> By click anywhere of the table, you can shift between two tables globally. <br>";
+    helptext+="> Move the record by click record's Number left, Sort by click column name. <br>";
+    helptext+="> There are some problems when single quote(') appeared, check it manually.<br>";
+    helptext+="<br> Open Source Software under GPLV3 licence.<br>";
+    helptext+="Websit: http://code.google.com/p/transpring/source/browse/tools/dbcmp <br>";
+    helptext+="<br>Contributors:<br>";
+    helptext+="V1.1.0  20130816    leiminghuan@126.com    create<br>";
+    helptext+="V2.0.1  20130823    leiminghuan@126.com    sorting, record moving, UI optimize<br>";
+    helptext+="V2.2.0  20130903    leiminghuan@126.com    column's function, assigned table compare.<br>";
     var stat=document.getElementById("help");
     if(stat.innerHTML == "") {
         stat.innerHTML=helptext;
@@ -254,10 +260,10 @@ function print(table1, table2, tname1, tname2) {
 
 function reprint(table1, table2, tname1, tname2) {
     var divtext, RecTmp1, RecTmp2;
-    divtext='<a href = "javascript:location.reload()">回首页</a>';
+    divtext='<a href = "javascript:location.reload()">Home</a>';
     if(typeof(maxrownum) != 'undefined') {
         if(table1.length >= maxrownum || table2.length >= maxrownum ) {
-            divtext+='  <font color="#FF0000">（仅显示了前'+maxrownum+'条）</font>';
+            divtext+='  <font color="#FF0000">(only shown first)'+maxrownum+'records)</font>';
         }
     }
     var    td_attrs="";
@@ -276,7 +282,7 @@ function reprint(table1, table2, tname1, tname2) {
             RecTmp2=table2[i];
         }
         divtext+="<tr>";
-        for( var j=0; j<table1[0].length-1; j++) {
+        for( var j=0; j<table1[0].length; j++) {
             if( j==0 ) {
                 if(i == 0) {
                     divtext+='<td bgcolor="#c0c0c0" >'+(tname1+'..........').substring(0,12)+'</td>';
@@ -312,13 +318,13 @@ function reprint(table1, table2, tname1, tname2) {
         divtext+="</tr>";
     }
     divtext+="</table>";
-    divtext+='<br><a href = "javascript:showHelp()">帮助</a>';
+    divtext+='<br><a href = "javascript:showHelp()">Help</a>';
     document.getElementById("mydiv").innerHTML=divtext;
 }
 </script>
 
 EOF
-  echo "数据比较完毕，结果详见$rptfile"
+  echo "data compare finished, see report file:$rptfile".
 }
 
 if [ "$1" == 'init' ]; then
@@ -338,12 +344,12 @@ if [ "$1" == 'table' ] && [ -n "$2" ]; then
   tablist=".dbcmp_$2.tbl";
   initsql;
   runCmp;
-  rm -f "$sqlfile" "$tablist" 
+  #rm -f "$sqlfile" "$tablist" 
   exit;
 fi
 
 echo "Usage: dbcmp init|run|{table <tname>}";
-echo "       init: run it when table's structure、configure files is changed";
-echo "       run : excute the comparation";
-echo "       table <tname> : init and excute the comparation only for the table <tname>";
+echo "       init:  run it when fisrt use or table's structure、configure files is changed";
+echo "       run :  excute the comparation";
+echo "       table: init and run the comparation only for the table <tname>";
 
