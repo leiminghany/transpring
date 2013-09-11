@@ -31,3 +31,10 @@ _GLOBAL__ 表示匹配所有表的列名。
 一个表的配置可以写在多行，并且支持#最整行注释。
 两个表的差集列系统会自动删除，无需在本列中配置。
 如果需要对某列在比较前使用函数处理而不是直接删除，只需要在此列后紧跟着添加|UPDATE;<expression>;|语句即可，其中<expression>是替代本列的SQL表达式。
+
+Windows平台使用方法：
+1）下载并安装git for windows。
+2）安装完后打开Git Bash，之后运行如下命令下载dbcmp：
+$ git clone http://code.google.com/p/transpring
+3）下载完后，进入transpring/tools/dbcmp目录即可使用。
+
