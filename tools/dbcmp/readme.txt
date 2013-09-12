@@ -20,6 +20,7 @@ rptfile="report.html"         #生成的差异报告文件名
 xcols_path=./           #排除列配置文件目录
 xcols_file="dbcmp.xcols"        #排除列配置文件
 maxrownum=500		#输出记录的最大条数
+sqlvarlist=""		#声明在tablist中使用的SQL变量，用分号隔开。
 
 dbcmp.tbl：参与比对数据库表配置文件。
 填写要参与比对的表名，可以带WHERE条件，如果没有WHERE条件，系统将采用全局配置的default_condstr参数。
