@@ -263,7 +263,7 @@ function reprint(table1, table2, tname1, tname2) {
     divtext='<a href = "javascript:location.reload()">Home</a>';
     if(typeof(maxrownum) != 'undefined') {
         if(table1.length >= maxrownum || table2.length >= maxrownum ) {
-            divtext+='  <font color="#FF0000">(only shown first)'+maxrownum+'records)</font>';
+            divtext+='  <font color="#FF0000">(only shown first '+maxrownum+'records)</font>';
         }
     }
     var    td_attrs="";
