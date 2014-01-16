@@ -344,7 +344,7 @@ if [ "$1" == 'table' ] && [ -n "$2" ]; then
   tablist=".dbcmp_$2.tbl";
   initsql;
   runCmp;
-  #rm -f "$sqlfile" "$tablist" 
+  rm -f "$sqlfile" "$tablist" 
   exit;
 fi
 
