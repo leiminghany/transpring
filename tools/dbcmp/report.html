@@ -6,7 +6,7 @@
     <script>
             /* data elements */
 
-//Comparing COMPANY  17:05:54
+//Comparing COMPANY  15:58:11
 var new_COMPANY = new Array(
 
 [ ' COMNO ', ' COMP_NAME ', ],
@@ -16,13 +16,14 @@ var old_COMPANY = new Array(
 [ ' COMNO ', ' COMP_NAME ', ],
 [])
 
-//Comparing EMP  17:05:54
+//Comparing EMP  15:58:11
 var new_EMP = new Array(
 
 [ ' COMPANY ', ' EMPNO ', ' SNAME ', ],
 
 [ '          1 ', '       1002 ', ' LINUS    ', ],
 [ '          1 ', '       1003 ', ' LEMAN    ', ],
+[ '          1 ', '       1004 ', '          ', ],
 [])
 var old_EMP = new Array(
 
@@ -30,9 +31,10 @@ var old_EMP = new Array(
 
 [ '          1 ', '       1002 ', ' ZHANG    ', ],
 [ '          1 ', '       1003 ', '          ', ],
+[ '          1 ', '       1004 ', ' 0        ', ],
 [])
 
-//Comparing DEPT  17:05:54
+//Comparing DEPT  15:58:11
 var new_DEPT = new Array(
 
 [ ' COMPANY ', ' DPNAME ', ' DPNO ', ],
@@ -153,7 +155,7 @@ function reprint(table1, table2, tname1, tname2) {
     divtext='<a href = "javascript:location.reload()">Home</a>';
     if(typeof(maxrownum) != 'undefined') {
         if(table1.length >= maxrownum || table2.length >= maxrownum ) {
-            divtext+='  <font color="#FF0000">(only shown first)'+maxrownum+'records)</font>';
+            divtext+='  <font color="#FF0000">(only shown first '+maxrownum+'records)</font>';
         }
     }
     var    td_attrs="";
@@ -190,8 +192,11 @@ function reprint(table1, table2, tname1, tname2) {
             }
 
             if(RecTmp1[j]!=RecTmp2[j]) {
-                td_attrs='bgcolor="#FFAA00" '+
-                    'onmouseover="javascript:ChangeValue(\''+tname1+'\','+i+','+j+',\''+RecTmp2[j]+'\')" '+
+                td_attrs='bgcolor="#FFAA00" ';
+                if(Math.abs(RecTmp1[j]-RecTmp2[j])<0.1) {
+                    td_attrs='bgcolor="#FDE0B3" ';
+                }
+                td_attrs += 'onmouseover="javascript:ChangeValue(\''+tname1+'\','+i+','+j+',\''+RecTmp2[j]+'\')" '+
                     'onmouseout ="javascript:ChangeValue(\''+tname1+'\','+i+','+j+',\''+RecTmp1[j]+'\')" ';
 
             }

@@ -300,8 +300,11 @@ function reprint(table1, table2, tname1, tname2) {
             }
 
             if(RecTmp1[j]!=RecTmp2[j]) {
-                td_attrs='bgcolor="#FFAA00" '+
-                    'onmouseover="javascript:ChangeValue(\''+tname1+'\','+i+','+j+',\''+RecTmp2[j]+'\')" '+
+                td_attrs='bgcolor="#FFAA00" ';
+                if(Math.abs(RecTmp1[j]-RecTmp2[j])<0.1) {
+                    td_attrs='bgcolor="#FDE0B3" ';
+                }
+                td_attrs += 'onmouseover="javascript:ChangeValue(\''+tname1+'\','+i+','+j+',\''+RecTmp2[j]+'\')" '+
                     'onmouseout ="javascript:ChangeValue(\''+tname1+'\','+i+','+j+',\''+RecTmp1[j]+'\')" ';
 
             }
