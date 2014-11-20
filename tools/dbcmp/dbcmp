@@ -13,6 +13,7 @@ function gendiffsql()
 
     tab_name1=${prefix1}${tab}${suffix1};
     tab_name2=${prefix2}${tab}${suffix2};
+    tab=${tab%_*};
     count=0;
     cols=;
     cols2=;
@@ -72,14 +73,14 @@ function gendiffsql()
     echo -e "prompt var $tab_name1 = new Array( " >>$sqlfile;
     echo -e "select $colnames from dual;" >>$sqlfile;
     echo -e "select $cols2 from " >>$sqlfile;
-    echo -e "(select $cols from $tab_name1 $condstr minus" >>$sqlfile;
-    echo -e " select $cols from $tab_name2 $condstr) $rownumcntl;">>$sqlfile;
+    echo -e "(select $cols from $prefix1${tab}$suffix1 $condstr minus" >>$sqlfile;
+    echo -e " select $cols from $prefix2${tab}$suffix2 $condstr) $rownumcntl;">>$sqlfile;
     echo -e "prompt [])"  >>$sqlfile;
     echo -e "prompt var $tab_name2 = new Array( " >>$sqlfile;
     echo -e "select $colnames from dual;" >>$sqlfile;
     echo -e "select $cols2 from " >>$sqlfile;
-    echo -e "(select $cols from $tab_name2 $condstr minus" >>$sqlfile;
-    echo -e " select $cols from $tab_name1 $condstr) $rownumcntl;">>$sqlfile;
+    echo -e "(select $cols from $prefix2${tab}$suffix2 $condstr minus" >>$sqlfile;
+    echo -e " select $cols from $prefix1${tab}$suffix1 $condstr) $rownumcntl;">>$sqlfile;
     echo -e "prompt [])"  >>$sqlfile;
     echo -e "-------------------">>$sqlfile;
 }
@@ -119,8 +120,8 @@ set feedback off
 set ver off
 spool $tmpfile
 set trimspool on
-define tbl1=$prefix1$tab$suffix1;
-define tbl2=$prefix2$tab$suffix2;
+define tbl1=$prefix1${tab%_*}$suffix1;
+define tbl2=$prefix2${tab%_*}$suffix2;
 select COLUMN_NAME from COLS where TABLE_NAME =upper('&tbl1') intersect select COLUMN_NAME from COLS where TABLE_NAME =upper('&tbl2');
 quit;
 EOF

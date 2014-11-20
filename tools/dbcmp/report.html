@@ -6,7 +6,7 @@
     <script>
             /* data elements */
 
-//Comparing COMPANY  15:58:11
+//Comparing COMPANY  18:54:27
 var new_COMPANY = new Array(
 
 [ ' COMNO ', ' COMP_NAME ', ],
@@ -16,7 +16,17 @@ var old_COMPANY = new Array(
 [ ' COMNO ', ' COMP_NAME ', ],
 [])
 
-//Comparing EMP  15:58:11
+//Comparing COMPANY  18:54:27
+var new_COMPANY_2 = new Array(
+
+[ ' COMNO ', ' COMP_NAME ', ],
+[])
+var old_COMPANY_2 = new Array(
+
+[ ' COMNO ', ' COMP_NAME ', ],
+[])
+
+//Comparing EMP  18:54:27
 var new_EMP = new Array(
 
 [ ' COMPANY ', ' EMPNO ', ' SNAME ', ],
@@ -34,7 +44,7 @@ var old_EMP = new Array(
 [ '          1 ', '       1004 ', ' 0        ', ],
 [])
 
-//Comparing DEPT  15:58:11
+//Comparing DEPT  18:54:27
 var new_DEPT = new Array(
 
 [ ' COMPANY ', ' DPNAME ', ' DPNO ', ],
@@ -58,6 +68,11 @@ if(new_COMPANY.length<=2 && old_COMPANY.length<=2 ){
   document.write('Table COMPANY has no difference. <br>');
 } else {
   document.write('Table COMPANY has some differences: <a href="javascript:print(new_COMPANY,old_COMPANY,\'new_COMPANY\', \'old_COMPANY\')"> view detail  </a> <br>');
+}
+if(new_COMPANY_2.length<=2 && old_COMPANY_2.length<=2 ){
+  document.write('Table COMPANY_2 has no difference. <br>');
+} else {
+  document.write('Table COMPANY_2 has some differences: <a href="javascript:print(new_COMPANY_2,old_COMPANY_2,\'new_COMPANY_2\', \'old_COMPANY_2\')"> view detail  </a> <br>');
 }
 if(new_EMP.length<=2 && old_EMP.length<=2 ){
   document.write('Table EMP has no difference. <br>');
