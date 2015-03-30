@@ -1,2 +1,6 @@
+通用金融交易模拟器，用于金融信息系统的测试。 支持ISO、FIX、SQL； 支持自动化测试、回归测试； 支持报表生产、案例导入导出； 支持自创模板，支持多种卡组织规范； 支持Linux、Windows平台； 支持脚本扩展功能。
+
+transaction simulator for bank information system
+
 Catalog descriptions:
 tools	some tools used for report
