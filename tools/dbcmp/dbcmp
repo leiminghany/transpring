@@ -13,7 +13,7 @@ function gendiffsql()
 
     tab_name1=${prefix1}${tab}${suffix1};
     tab_name2=${prefix2}${tab}${suffix2};
-    tab=${tab%_*};
+    tab=${tab%/*};
     count=0;
     cols=;
     cols2=;
@@ -120,8 +120,8 @@ set feedback off
 set ver off
 spool $tmpfile
 set trimspool on
-define tbl1=$prefix1${tab%_*}$suffix1;
-define tbl2=$prefix2${tab%_*}$suffix2;
+define tbl1=$prefix1${tab%/*}$suffix1;
+define tbl2=$prefix2${tab%/*}$suffix2;
 select COLUMN_NAME from COLS where TABLE_NAME =upper('&tbl1') intersect select COLUMN_NAME from COLS where TABLE_NAME =upper('&tbl2');
 quit;
 EOF
@@ -353,7 +353,7 @@ if [ "$1" == 'table' ] && [ -n "$2" ]; then
 fi
 
 echo "Usage: dbcmp init|run|{table <tname>}";
-echo "       init:  run it when fisrt use or table's structure¡¢configure files is changed";
+echo "       init:  run it when fisrt use or table's structureÂ¡Â¢configure files is changed";
 echo "       run :  excute the comparation";
 echo "       table: init and run the comparation only for the table <tname>";
 
