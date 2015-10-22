@@ -35,11 +35,11 @@ function gendiffsql()
         fi
             
         #exclude cols
-        exclude_str=`grep "^__GLOBAL__:.*|$col|" "$xcols_path$xcols_file"`;
+        exclude_str=`grep -i "^__GLOBAL__:.*|$col|" "$xcols_path$xcols_file"`;
         if [ -n "$exclude_str" ]; then
             continue;
         else
-            exclude_str=`grep "^$tab:.*|$col|" "$xcols_path$xcols_file"`;
+            exclude_str=`grep -i "^$tab:.*|$col|" "$xcols_path$xcols_file"`;
         fi
 
         if [ -n "$exclude_str" ]; then
